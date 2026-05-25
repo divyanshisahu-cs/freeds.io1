@@ -104,8 +104,24 @@ const LandingPage = () => {
 
   useEffect(() => {
     api
-      .get('/ads')
-      .then((res) => setAds(res.data))
+      .get('/api/posts')
+      .then((res) => {
+        const posts = Array.isArray(res.data) ? res.data : [];
+
+        setAds(
+          posts.map((post) => ({
+            id: post._id,
+            imageUrl: post.image ? `/uploads/${post.image}` : 'https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=900&q=80',
+            title: post.title,
+            description: post.description,
+            location: post.location,
+            salary: post.price ? `${post.currency || ''} ${post.price}`.trim() : '',
+            experience: post.company || '',
+            isFeatured: post.featured,
+            tag: post.category || 'Listing',
+          }))
+        );
+      })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
   }, []);
