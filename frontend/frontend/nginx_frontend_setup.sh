@@ -4,7 +4,20 @@ sudo unzip -o frontend_deploy.zip -d /var/www/freeds/dist
 sudo bash -c 'cat > /etc/nginx/sites-available/freeds <<EOF
 server {
     listen 80;
-    server_name _;
+    server_name 3.228.14.242 freeds.io1;
+
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name 3.228.14.242 freeds.io1;
+
+    ssl_certificate /etc/letsencrypt/live/freeds.io1/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/freeds.io1/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    ssl_ciphers HIGH:!aNULL:!MD5;
 
     root /var/www/freeds/dist;
     index index.html;
