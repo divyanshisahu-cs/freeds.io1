@@ -56,36 +56,18 @@ app.get('/', (req, res) => {
 
 
 // DATABASE CONNECTION
-mongoose.connect(
-  process.env.MONGODB_URI
-)
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => {
+    console.log('Connected to MongoDB');
 
-.then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('Failed to connect to MongoDB', err);
 
-  console.log(
-    'Connected to MongoDB'
-  );
-
-  app.listen(PORT, () => {
-
-    console.log(
-      `Server is running on port ${PORT}`
-    );
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT} (MongoDB not connected)`);
+    });
   });
-
-})
-
-.catch((err) => {
-
-  console.error(
-    'Failed to connect to MongoDB',
-    err
-  );
-
-  app.listen(PORT, () => {
-
-    console.log(
-      `Server is running on port ${PORT} (MongoDB not connected)`
-    );
-  });
-});
