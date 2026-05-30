@@ -10,6 +10,8 @@ const User = require("../models/User");
 
 const AdminSetting = require("../models/AdminSetting");
 
+const { optionalAuth, requireAuth, requireVerifiedAuth, requireAdmin } = require("../middleware/auth");
+
 const getAdminSetting = async () =>
   AdminSetting.findOneAndUpdate(
     { key: "main" },
@@ -36,6 +38,8 @@ router.post(
 
   "/add",
 
+  requireVerifiedAuth,
+
   upload.single("image"),
 
   async (req, res) => {
@@ -43,6 +47,7 @@ router.post(
     try {
 
       const post = await Post.create({
+        user: req.user?._id || null,
 
         title: req.body.title,
 
@@ -50,11 +55,21 @@ router.post(
 
         location: req.body.location,
 
+        state: req.body.state,
+
+        city: req.body.city,
+
         country: req.body.country,
 
         category: req.body.category,
 
         company: req.body.company,
+
+        email: req.body.email || req.user?.email || "",
+
+        mobile: req.body.mobile || req.user?.mobile || "",
+
+        whatsapp: req.body.whatsapp || req.user?.profile?.whatsappNumber || "",
 
         adType: req.body.adType,
 
@@ -93,8 +108,28 @@ router.post(
 router.get("/", async (req, res) => {
 
   try {
+    const query = {};
+
+    if (req.query.country) query.country = req.query.country;
+    if (req.query.state) query.state = req.query.state;
+    if (req.query.city) query.city = req.query.city;
+    if (req.query.category) query.category = req.query.category;
+    if (req.query.keyword) {
+      query.$or = [
+        { title: { $regex: req.query.keyword, $options: "i" } },
+        { description: { $regex: req.query.keyword, $options: "i" } },
+        { location: { $regex: req.query.keyword, $options: "i" } },
+      ];
+    }
+    if (req.query.minPrice) {
+      query.price = { ...(query.price || {}), $gte: Number(req.query.minPrice) };
+    }
+    if (req.query.maxPrice) {
+      query.price = { ...(query.price || {}), $lte: Number(req.query.maxPrice) };
+    }
 
     const posts = await Post.find()
+      .find(query)
       .sort({ createdAt: -1 });
 
     res.json(posts);
@@ -225,11 +260,20 @@ router.get("/analytics/total", async (req, res) => {
   }
 });
 
+router.get("/mine", requireAuth, async (req, res) => {
+  try {
+    const posts = await Post.find({ user: req.user._id }).sort({ createdAt: -1 });
+    res.json(posts);
+  } catch (error) {
+    res.status(500).json(error);
+  }
+});
+
 
 // =====================================
 // ADMIN DASHBOARD DATA
 // =====================================
-router.get("/admin/dashboard", async (req, res) => {
+router.get("/admin/dashboard", requireAdmin, async (req, res) => {
 
   try {
 
@@ -276,7 +320,7 @@ router.get("/admin/dashboard", async (req, res) => {
 // =====================================
 // BLOCK USER LOGIN
 // =====================================
-router.post("/admin/block-user", async (req, res) => {
+router.post("/admin/block-user", requireAdmin, async (req, res) => {
 
   try {
 
@@ -322,7 +366,7 @@ router.post("/admin/block-user", async (req, res) => {
 // =====================================
 // UNBLOCK USER LOGIN
 // =====================================
-router.post("/admin/unblock-user", async (req, res) => {
+router.post("/admin/unblock-user", requireAdmin, async (req, res) => {
 
   try {
 
@@ -348,7 +392,7 @@ router.post("/admin/unblock-user", async (req, res) => {
 // =====================================
 // ADMIN MESSAGE
 // =====================================
-router.post("/admin/message", async (req, res) => {
+router.post("/admin/message", requireAdmin, async (req, res) => {
 
   try {
 
@@ -373,7 +417,7 @@ router.post("/admin/message", async (req, res) => {
 // =====================================
 // ADMIN ANNOUNCEMENT
 // =====================================
-router.post("/admin/announcement", async (req, res) => {
+router.post("/admin/announcement", requireAdmin, async (req, res) => {
 
   try {
 
@@ -412,7 +456,7 @@ router.post("/admin/announcement", async (req, res) => {
 // =====================================
 // FEATURED AD PRICE
 // =====================================
-router.put("/admin/featured-price", async (req, res) => {
+router.put("/admin/featured-price", requireAdmin, async (req, res) => {
 
   try {
 
@@ -438,16 +482,44 @@ router.put("/admin/featured-price", async (req, res) => {
 // =====================================
 // UPDATE POST
 // =====================================
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireVerifiedAuth, upload.single("image"), async (req, res) => {
 
   try {
+    const allowedFields = [
+      "description",
+      "location",
+      "state",
+      "city",
+      "company",
+      "whatsapp",
+      "price",
+      "currency",
+      "featured",
+      "adType",
+      "paymentProvider",
+      "paymentStatus",
+      "startDate",
+      "endDate",
+    ];
+
+    const updates = {};
+
+    allowedFields.forEach((field) => {
+      if (Object.prototype.hasOwnProperty.call(req.body, field)) {
+        updates[field] = req.body[field];
+      }
+    });
+
+    if (req.file) {
+      updates.image = req.file.filename;
+    }
 
     const updatedPost =
       await Post.findByIdAndUpdate(
 
         req.params.id,
 
-        req.body,
+        updates,
 
         { new: true }
 
@@ -465,7 +537,7 @@ router.put("/:id", async (req, res) => {
 // =====================================
 // DELETE POST
 // =====================================
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireVerifiedAuth, async (req, res) => {
 
   try {
 

@@ -1,5 +1,5 @@
-import { Link, NavLink } from "react-router-dom";
-import { useState } from "react";
+import { Link, NavLink, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 
 export const jobBoardNavLinks = [
   { label: "Jobs", to: "/jobs" },
@@ -10,8 +10,28 @@ export const jobBoardNavLinks = [
 ];
 
 const JobBoardNav = () => {
+  const navigate = useNavigate();
 
-  const [country, setCountry] = useState("India");
+  const [country, setCountry] = useState(() => localStorage.getItem("country") || "India");
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    setUser(storedUser ? JSON.parse(storedUser) : null);
+  }, []);
+
+  const handleCountryChange = (value) => {
+    setCountry(value);
+    localStorage.setItem("country", value);
+    window.dispatchEvent(new CustomEvent("countrychange", { detail: value }));
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setUser(null);
+    navigate("/signin");
+  };
 
   return (
 
@@ -51,7 +71,7 @@ const JobBoardNav = () => {
           {/* COUNTRY SELECTOR */}
           <select
             value={country}
-            onChange={(e) => setCountry(e.target.value)}
+            onChange={(e) => handleCountryChange(e.target.value)}
             className="rounded-md border border-slate-300 px-2 py-2 text-sm"
           >
             <option>India</option>
@@ -60,33 +80,41 @@ const JobBoardNav = () => {
 
 
           {/* ADMIN */}
-          <NavLink
-            to="/admin"
-            className="transition hover:text-slate-950 text-slate-600"
-          >
-            Admin
-          </NavLink>
+          {user && user.role === 'admin' && (
+            <NavLink
+              to="/admin"
+              className="transition hover:text-slate-950 text-slate-600"
+            >
+              Admin
+            </NavLink>
+          )}
 
 
           <span className="h-6 w-px bg-slate-300" />
 
 
-          {/* LOGIN */}
-          <Link
-            to="/signin"
-            className="transition hover:text-slate-950"
-          >
-            Login
-          </Link>
-
-
-          {/* SIGNUP */}
-          <Link
-            to="/signup"
-            className="rounded-md border border-slate-300 px-5 py-2 transition hover:border-slate-900"
-          >
-            Sign Up
-          </Link>
+          {user ? (
+            <>
+              <Link to="/profile" className="transition hover:text-slate-950">
+                Profile
+              </Link>
+              <button type="button" onClick={handleLogout} className="transition hover:text-slate-950">
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/signin" className="transition hover:text-slate-950">
+                Login
+              </Link>
+              <Link
+                to="/signup"
+                className="rounded-md border border-slate-300 px-5 py-2 transition hover:border-slate-900"
+              >
+                Sign Up
+              </Link>
+            </>
+          )}
 
 
           {/* POST JOB */}
