@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 
 function ScrapePage() {
 
@@ -9,8 +9,8 @@ function ScrapePage() {
 
   const handleScrape = async () => {
 
-    const response = await axios.post(
-      "http://localhost:5000/api/scrape",
+    const response = await api.post(
+      "/api/scrape",
       {
         url,
       }

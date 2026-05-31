@@ -1,58 +1,113 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, AtSign, LockKeyhole, ShieldCheck, UserRound } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ArrowRight, AtSign, LockKeyhole, Phone, ShieldCheck } from 'lucide-react';
 import api from '../services/api';
+import JobBoardNav from '../components/JobBoardNav';
 
 const SignupPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isAdminSignup = location.pathname === '/admin-signup';
   const [form, setForm] = useState({
     accountType: 'employer',
-    username: '',
     email: '',
+    mobile: '',
     password: '',
     confirmPassword: ''
   });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
   const updateForm = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
+  const buildVerificationNotice = (verification) => {
+    const notes = ['Registration successful. Verification required before sign in.'];
+
+    if (verification.emailOtp) {
+      notes.push(`Email OTP: ${verification.emailOtp}`);
+    } else if (verification.emailVerificationLink) {
+      notes.push(`Email verification link: ${verification.emailVerificationLink}`);
+    }
+
+    if (verification.mobileOtp) {
+      notes.push(`Mobile OTP: ${verification.mobileOtp}`);
+    }
+
+    return notes.join('\n');
+  };
+
+  const goToVerification = (verification) => {
+    const email = form.email.trim();
+    const mobile = form.mobile.trim();
+    const emailLink = verification.emailVerificationLink || '';
+    const emailOtp = verification.emailOtp || '';
+    const mobilePending = verification.pending?.mobile || Boolean(verification.mobileOtp);
+    const emailPending = verification.pending?.email || Boolean(emailLink || emailOtp);
+
+    if (mobilePending) {
+      const params = new URLSearchParams({ mobile });
+      if (email) params.set('email', email);
+      if (emailLink) params.set('emailLink', emailLink);
+      navigate(`/verify-mobile?${params.toString()}`);
+      return;
+    }
+
+    if (emailPending) {
+      navigate(email ? `/verify-email?email=${encodeURIComponent(email)}` : emailLink);
+      return;
+    }
+
+    navigate('/signin');
+  };
+
   const handleRegister = async (event) => {
     event.preventDefault();
     setError('');
+    setSuccess('');
 
-    if (!form.username.trim()) return setError('Username is required');
-    if (!form.email.includes('@')) return setError('Enter a valid email address');
+    if (!form.email.trim() && !form.mobile.trim()) return setError('Enter email or mobile number');
+    if (form.email.trim() && !form.email.includes('@')) return setError('Enter a valid email address');
     if (form.password.length < 6) return setError('Password must be at least 6 characters');
     if (form.password !== form.confirmPassword) return setError('Passwords do not match');
 
     setLoading(true);
     try {
 
-  await api.post(
+  const response = await api.post(
     '/auth/register',
     {
       username:
-        form.username.trim(),
+        form.email.trim() || form.mobile.trim(),
 
       email:
         form.email.trim(),
 
+      mobile:
+        form.mobile.trim(),
+
       accountType:
-        form.accountType,
+        isAdminSignup ? 'admin' : form.accountType,
+
+      role:
+        isAdminSignup ? 'admin' : 'user',
 
       password:
         form.password
     }
   );
 
-  alert(
-    "Registration Successful"
-  );
+  const verification = response?.data?.verification || {};
 
-  navigate('/signin');
+  // Show inline success before redirecting
+  const notes = ['Registration successful! Verification required before sign in.'];
+  if (verification.emailOtp) notes.push(`Email OTP: ${verification.emailOtp}`);
+  if (verification.mobileOtp) notes.push(`Mobile OTP: ${verification.mobileOtp}`);
+  setSuccess(notes.join(' — '));
+
+  setTimeout(() => goToVerification(verification), 1500);
 
 }
     catch (err) {
@@ -63,7 +118,9 @@ const SignupPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f7f4] px-4 py-8 text-slate-900">
+    <div className="min-h-screen bg-[#f5f7f4] text-slate-900">
+      <JobBoardNav />
+      <div className="px-4 py-8">
       <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl overflow-hidden rounded-[36px] border border-white/70 bg-white shadow-[0_40px_100px_-40px_rgba(15,23,42,0.4)] lg:grid-cols-[0.95fr_1.05fr]">
         <div className="relative hidden overflow-hidden bg-slate-900 p-10 text-white lg:flex lg:flex-col lg:justify-between">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.35),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(251,191,36,0.18),_transparent_28%)]" />
@@ -80,7 +137,7 @@ const SignupPage = () => {
               <ShieldCheck size={14} />
               Email signup
             </div>
-            <h1 className="text-4xl font-semibold leading-tight">Create an account with username, email, and password.</h1>
+            <h1 className="text-4xl font-semibold leading-tight">Create an account with email or mobile number.</h1>
             <p className="mt-5 text-base leading-7 text-slate-300">
               This matches the freeads.no registration pattern and unlocks posting, favorites, replies, reports, and candidate contact actions.
             </p>
@@ -106,7 +163,9 @@ const SignupPage = () => {
             <div className="mb-8">
               <div className="text-sm font-semibold uppercase tracking-[0.26em] text-emerald-700">Register</div>
               <h2 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">Sign up</h2>
-              <p className="mt-3 text-base leading-7 text-slate-600">Use email registration to access all job and candidate features.</p>
+              <p className="mt-3 text-base leading-7 text-slate-600">
+                {isAdminSignup ? 'Create an admin account using your email address.' : 'Use email or mobile registration to access posting, dashboard, and profile features.'}
+              </p>
             </div>
 
             {error && (
@@ -115,7 +174,14 @@ const SignupPage = () => {
               </div>
             )}
 
+            {success && (
+              <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                {success}
+              </div>
+            )}
+
             <form className="space-y-5" onSubmit={handleRegister}>
+              {!isAdminSignup && (
               <div>
                 <span className="mb-2 block text-sm font-semibold text-slate-700">Account type</span>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -141,21 +207,9 @@ const SignupPage = () => {
                   ))}
                 </div>
               </div>
+              )}
 
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-slate-700">Username</span>
-                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 focus-within:border-emerald-600 focus-within:bg-white">
-                  <UserRound size={18} className="text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Choose username"
-                    className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
-                    value={form.username}
-                    onChange={(event) => updateForm('username', event.target.value)}
-                  />
-                </div>
-              </label>
-
+              <div className="grid gap-5 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-2 block text-sm font-semibold text-slate-700">Email</span>
                 <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 focus-within:border-emerald-600 focus-within:bg-white">
@@ -169,6 +223,21 @@ const SignupPage = () => {
                   />
                 </div>
               </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-semibold text-slate-700">Mobile</span>
+                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 focus-within:border-emerald-600 focus-within:bg-white">
+                  <Phone size={18} className="text-slate-400" />
+                  <input
+                    type="tel"
+                    placeholder="+91..."
+                    className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                    value={form.mobile}
+                    onChange={(event) => updateForm('mobile', event.target.value)}
+                  />
+                </div>
+              </label>
+              </div>
 
               <div className="grid gap-5 sm:grid-cols-2">
                 <label className="block">
@@ -220,6 +289,7 @@ const SignupPage = () => {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

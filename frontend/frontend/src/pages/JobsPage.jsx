@@ -19,6 +19,7 @@ import {
   X
 } from 'lucide-react';
 import api from '../services/api';
+import JobBoardNav from '../components/JobBoardNav';
 
 const fallbackJobAds = [
   {
@@ -477,7 +478,7 @@ const JobsPage = () => {
     setIsAuthenticated(Boolean(localStorage.getItem('token')));
 
     api
-      .get('/ads/jobs')
+      .get('/api/ads/jobs')
       .then((res) => {
         setJobs(res.data.jobAds || []);
         setCandidates(res.data.candidateProfiles || []);
@@ -533,7 +534,7 @@ const JobsPage = () => {
     setSubmitting(true);
     setMessage('');
     try {
-      const res = await api.post('/ads/jobs', jobForm);
+      const res = await api.post('/api/ads/jobs', jobForm);
       setJobs((current) => [res.data, ...current]);
       setJobForm({
         title: '',
@@ -562,7 +563,7 @@ const JobsPage = () => {
     setSubmitting(true);
     setMessage('');
     try {
-      const res = await api.post('/ads/candidates', candidateForm);
+      const res = await api.post('/api/ads/candidates', candidateForm);
       setCandidates((current) => [res.data, ...current]);
       setCandidateForm({
         name: '',
@@ -634,25 +635,7 @@ const JobsPage = () => {
 
   return (
     <div className="min-h-screen bg-[#f5f7f4] text-slate-900">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-10">
-        <Link to="/" className="inline-flex items-center gap-3">
-          <div className="rounded-2xl bg-slate-900 px-3 py-2 text-sm font-bold uppercase tracking-[0.26em] text-white">FA</div>
-          <div>
-            <div className="text-xl font-bold tracking-tight text-slate-900">Freeads</div>
-            <div className="text-xs uppercase tracking-[0.28em] text-slate-500">Jobs marketplace</div>
-          </div>
-        </Link>
-
-        <div className="flex items-center gap-3">
-          <Link to="/" className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900">
-            <ArrowLeft size={16} />
-            Landing page
-          </Link>
-          <Link to="/post-a-job" className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800">
-            Post a Job
-          </Link>
-        </div>
-      </nav>
+      <JobBoardNav />
 
       <section className="mx-auto max-w-7xl px-6 pb-14 pt-8 lg:px-10">
         <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">

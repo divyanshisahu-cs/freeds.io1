@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 
 import api from '../services/api';
+import JobBoardNav from '../components/JobBoardNav';
 
 
 const SignInPage = () => {
@@ -66,11 +67,25 @@ const SignInPage = () => {
         )
       );
 
-      alert("Login Successful");
-
-      navigate('/admin');
+      navigate(res.data.user?.role === 'admin' ? '/admin' : '/profile');
 
     } catch (err) {
+
+      // Handle verification required
+      if (err.response?.status === 403 && err.response?.data?.verificationRequired) {
+        const verification = err.response.data.verification || {};
+        const email = identifier.includes('@') ? identifier : '';
+        
+        if (verification.pending?.mobile) {
+          navigate(`/verify-mobile?mobile=${encodeURIComponent(identifier)}`);
+          return;
+        }
+
+        if (verification.pending?.email) {
+          navigate(`/verify-email?email=${encodeURIComponent(email || identifier)}`);
+          return;
+        }
+      }
 
       setError(
 
@@ -88,7 +103,9 @@ const SignInPage = () => {
 
   return (
 
-    <div className="min-h-screen bg-[#f5f7f4] px-4 py-8 text-slate-900">
+    <div className="min-h-screen bg-[#f5f7f4] text-slate-900">
+      <JobBoardNav />
+      <div className="px-4 py-8">
 
       <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl overflow-hidden rounded-[36px] border border-white/70 bg-white shadow-[0_40px_100px_-40px_rgba(15,23,42,0.4)] lg:grid-cols-[0.95fr_1.05fr]">
 
@@ -159,13 +176,13 @@ const SignInPage = () => {
 
               <div className="mt-3 text-2xl font-semibold text-white">
 
-                {identifier || 'username or email'}
+                {identifier || 'email or mobile'}
 
               </div>
 
               <p className="mt-2 text-sm leading-6 text-slate-300">
 
-                Use the same username or email
+                Use the same email or mobile number
                 you created on the register screen.
 
               </p>
@@ -220,7 +237,7 @@ const SignInPage = () => {
               </h2>
 
               <p className="mt-3 text-base leading-7 text-slate-600">
-                Use your username or email and password.
+                Use your email or mobile number and password.
               </p>
 
             </div>
@@ -245,7 +262,7 @@ const SignInPage = () => {
 
                 <span className="mb-2 block text-sm font-semibold text-slate-700">
 
-                  Username or Email
+                  Email or Mobile Number
 
                 </span>
 
@@ -258,7 +275,7 @@ const SignInPage = () => {
 
                   <input
                     type="text"
-                    placeholder="username or name@example.com"
+                    placeholder="name@example.com or +91..."
                     className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
                     value={identifier}
                     onChange={(e) =>
@@ -354,8 +371,8 @@ const SignInPage = () => {
 
               <p className="mt-2 text-sm leading-6 text-slate-600">
 
-                Create one with username,
-                email, and password,
+                Create one with email or mobile number,
+                then verify it,
                 then come back here to log in.
 
               </p>
@@ -377,6 +394,7 @@ const SignInPage = () => {
 
         </div>
 
+      </div>
       </div>
 
     </div>

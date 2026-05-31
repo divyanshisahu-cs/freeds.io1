@@ -14,6 +14,12 @@ const postRoutes =
 const authRoutes =
   require("./routes/authRoutes");
 
+const scrapeRoutes =
+  require("./routes/scrapeRoutes");
+
+const adsRoutes =
+  require("./routes/adsRoutes");
+
 
 dotenv.config();
 
@@ -43,6 +49,16 @@ app.use(
 app.use(
   "/auth",
   authRoutes
+);
+
+app.use(
+  "/api/scrape",
+  scrapeRoutes
+);
+
+app.use(
+  "/api/ads",
+  adsRoutes
 );
 
 

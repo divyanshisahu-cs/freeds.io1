@@ -1,6 +1,11 @@
 const mongoose = require("mongoose");
 
 const postSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    default: null,
+  },
 
   title: {
     type: String,
@@ -17,6 +22,16 @@ const postSchema = new mongoose.Schema({
     required: true,
   },
 
+  state: {
+    type: String,
+    default: "",
+  },
+
+  city: {
+    type: String,
+    default: "",
+  },
+
   country: {
     type: String,
     default: "India",
@@ -28,6 +43,21 @@ const postSchema = new mongoose.Schema({
   },
 
   company: {
+    type: String,
+    default: "",
+  },
+
+  email: {
+    type: String,
+    default: "",
+  },
+
+  mobile: {
+    type: String,
+    default: "",
+  },
+
+  whatsapp: {
     type: String,
     default: "",
   },

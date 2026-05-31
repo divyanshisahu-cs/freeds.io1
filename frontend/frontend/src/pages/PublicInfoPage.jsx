@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Building2, FileText, Newspaper, UserRound, WalletCards } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ArrowRight, Building2, FileText, Newspaper, UserRound, WalletCards, Edit3, Save, X } from 'lucide-react';
 import JobBoardNav from '../components/JobBoardNav';
 
 const pageContent = {
@@ -37,6 +38,33 @@ const PublicInfoPage = ({ type }) => {
   const content = pageContent[type] || pageContent.companies;
   const Icon = content.icon || FileText;
 
+  const [editing, setEditing] = useState(false);
+  const storageKey = `publicInfo.${type || 'companies'}.items`;
+  const [itemsState, setItemsState] = useState(content.items);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(storageKey);
+    if (saved) setItemsState(JSON.parse(saved));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleChange = (index, value) => {
+    const copy = [...itemsState];
+    copy[index] = value;
+    setItemsState(copy);
+  };
+
+  const handleSave = () => {
+    localStorage.setItem(storageKey, JSON.stringify(itemsState));
+    setEditing(false);
+  };
+
+  const handleCancel = () => {
+    const saved = localStorage.getItem(storageKey);
+    setItemsState(saved ? JSON.parse(saved) : content.items);
+    setEditing(false);
+  };
+
   return (
     <div className="min-h-screen bg-[#f7f7f5] text-slate-900">
       <JobBoardNav />
@@ -51,11 +79,37 @@ const PublicInfoPage = ({ type }) => {
           <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">{content.description}</p>
 
           <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {content.items.map((item) => (
-              <div key={item} className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-700">
-                {item}
+            {itemsState.map((item, idx) => (
+              <div key={`${idx}-${item}`} className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-700">
+                {editing ? (
+                  <textarea
+                    value={item}
+                    onChange={(e) => handleChange(idx, e.target.value)}
+                    className="w-full resize-none bg-transparent text-sm font-semibold text-slate-700 outline-none"
+                    rows={3}
+                  />
+                ) : (
+                  item
+                )}
               </div>
             ))}
+          </div>
+
+          <div className="mt-4 flex items-center gap-3">
+            {!editing ? (
+              <button onClick={() => setEditing(true)} className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                <Edit3 size={14} /> Edit
+              </button>
+            ) : (
+              <>
+                <button onClick={handleSave} className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500">
+                  <Save size={14} /> Save
+                </button>
+                <button onClick={handleCancel} className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                  <X size={14} /> Cancel
+                </button>
+              </>
+            )}
           </div>
 
           <div className="mt-10 flex flex-wrap gap-3">

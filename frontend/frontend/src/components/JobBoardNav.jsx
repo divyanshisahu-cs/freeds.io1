@@ -44,7 +44,7 @@ const JobBoardNav = () => {
           to="/"
           className="font-serif text-3xl font-semibold tracking-tight text-slate-950"
         >
-          freeads.no
+          freeds.io
         </Link>
 
 

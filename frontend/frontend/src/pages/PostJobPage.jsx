@@ -32,7 +32,12 @@ const initialForm = {
   phone: '',
   description: '',
   imageUrl: '',
+  imageFile: null,
   country: 'India',
+  state: '',
+  city: '',
+  startDate: '',
+  endDate: '',
   listingPlan: 'standard',
   paymentProvider: 'Razorpay'
 };
@@ -106,7 +111,11 @@ const PostJobPage = () => {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = () => updateForm('imageUrl', String(reader.result || ''));
+    reader.onload = () => setForm((current) => ({
+      ...current,
+      imageFile: file,
+      imageUrl: String(reader.result || '')
+    }));
     reader.readAsDataURL(file);
   };
 
@@ -133,9 +142,73 @@ const PostJobPage = () => {
     return '';
   };
 
-  const goNext = () => {
+  const buildVerificationNotice = (verification) => {
+    const notes = ['Account created. Verification required before posting.'];
+
+    if (verification.emailOtp) {
+      notes.push(`Email OTP: ${verification.emailOtp}`);
+    } else if (verification.emailVerificationLink) {
+      notes.push(`Email verification link: ${verification.emailVerificationLink}`);
+    }
+
+    if (verification.mobileOtp) {
+      notes.push(`Mobile OTP: ${verification.mobileOtp}`);
+    }
+
+    return notes.join('\n');
+  };
+
+  const goToVerification = (verification) => {
+    const emailLink = verification.emailVerificationLink || '';
+    const emailOtp = verification.emailOtp || '';
+    const mobilePending = verification.pending?.mobile || Boolean(verification.mobileOtp);
+    const emailPending = verification.pending?.email || Boolean(emailLink || emailOtp);
+
+    if (mobilePending) {
+      const params = new URLSearchParams({ mobile: form.phone.trim() });
+      if (form.email.trim()) params.set('email', form.email.trim());
+      if (emailLink) params.set('emailLink', emailLink);
+      navigate(`/verify-mobile?${params.toString()}`);
+      return;
+    }
+
+    if (emailPending) {
+      navigate(form.email.trim() ? `/verify-email?email=${encodeURIComponent(form.email.trim())}` : emailLink);
+      return;
+    }
+
+    navigate('/signin');
+  };
+
+  const createAccountForPosting = async () => {
+    const response = await api.post('/auth/register', {
+      username: form.employerName.trim(),
+      email: form.email.trim(),
+      accountType: 'employer',
+      password: form.password
+    });
+
+    const verification = response?.data?.verification || {};
+    alert(buildVerificationNotice(verification));
+    goToVerification(verification);
+  };
+
+  const goNext = async () => {
     const error = validateStep();
     if (error) return setMessage(error);
+
+    if (step === 0 && !isSignedIn) {
+      setSubmitting(true);
+      try {
+        await createAccountForPosting();
+      } catch (err) {
+        setMessage(err.response?.data?.error || 'Account could not be created. Please try again.');
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     setStep((current) => Math.min(current + 1, steps.length - 1));
   };
 
@@ -166,22 +239,29 @@ const PostJobPage = () => {
         localStorage.setItem('token', login.data.token);
       }
 
-      await api.post('/api/posts/add', {
-        title: form.title.trim(),
-        description: form.description.trim(),
-        country: form.country,
-        category: 'Jobs',
-        company: form.company.trim(),
-        location: form.location.trim(),
-        adType: isFeatured ? 'Featured' : 'Standard',
-        price: isFeatured ? selectedFeaturedPrice : 0,
-        currency: selectedCurrency,
-        featured: isFeatured,
-        paymentProvider: isFeatured ? form.paymentProvider : '',
-        paymentStatus: isFeatured ? 'paid' : 'not_required',
-        startDate: new Date().toISOString(),
-        experience: form.experience,
-      });
+      const payload = new FormData();
+      payload.append('title', form.title.trim());
+      payload.append('description', form.description.trim());
+      payload.append('country', form.country);
+      payload.append('state', form.state.trim());
+      payload.append('city', form.city.trim());
+      payload.append('category', 'Jobs');
+      payload.append('company', form.company.trim());
+      payload.append('location', form.location.trim());
+      payload.append('mobile', form.phone.trim());
+      payload.append('email', form.email.trim());
+      payload.append('adType', isFeatured ? 'Featured' : 'Standard');
+      payload.append('price', isFeatured ? selectedFeaturedPrice : 0);
+      payload.append('currency', selectedCurrency);
+      payload.append('featured', String(isFeatured));
+      payload.append('paymentProvider', isFeatured ? form.paymentProvider : '');
+      payload.append('paymentStatus', isFeatured ? 'paid' : 'not_required');
+      payload.append('startDate', form.startDate || new Date().toISOString().slice(0, 10));
+      payload.append('endDate', form.endDate || '');
+      payload.append('experience', form.experience);
+      if (form.imageFile) payload.append('image', form.imageFile);
+
+      await api.post('/api/posts/add', payload);
 
       navigate('/jobs');
     } catch (err) {
@@ -322,6 +402,12 @@ const PostJobPage = () => {
                     <option>Norway</option>
                   </select>
                 </Field>
+                <Field label="State">
+                  <input className={inputClass} placeholder="All state / Kerala / Oslo" value={form.state} onChange={(event) => updateForm('state', event.target.value)} />
+                </Field>
+                <Field label="City">
+                  <input className={inputClass} placeholder="Kochi / Bergen" value={form.city} onChange={(event) => updateForm('city', event.target.value)} />
+                </Field>
                 <Field label="Job Type">
                   <select className={inputClass} value={form.type} onChange={(event) => updateForm('type', event.target.value)}>
                     <option>Full Time</option>
@@ -342,6 +428,12 @@ const PostJobPage = () => {
                 </Field>
                 <Field label="Job Description" required>
                   <textarea className={`${inputClass} min-h-36 sm:col-span-2`} value={form.description} onChange={(event) => updateForm('description', event.target.value)} />
+                </Field>
+                <Field label="Start date">
+                  <input type="date" className={inputClass} value={form.startDate} onChange={(event) => updateForm('startDate', event.target.value)} />
+                </Field>
+                <Field label="End date">
+                  <input type="date" className={inputClass} value={form.endDate} onChange={(event) => updateForm('endDate', event.target.value)} />
                 </Field>
                 <div className="sm:col-span-2">
                   <span className="mb-3 block text-sm font-semibold text-slate-700">Listing package</span>
@@ -437,9 +529,9 @@ const PostJobPage = () => {
               </button>
             )}
             {step < steps.length - 1 ? (
-              <button type="button" onClick={goNext} className="inline-flex items-center justify-center gap-2 rounded-md bg-[#1197ad] px-10 py-3 text-sm font-semibold text-white transition hover:bg-[#0f8396]">
-                Next
-                <ArrowRight size={16} />
+              <button disabled={submitting} type="button" onClick={goNext} className="inline-flex items-center justify-center gap-2 rounded-md bg-[#1197ad] px-10 py-3 text-sm font-semibold text-white transition hover:bg-[#0f8396] disabled:cursor-not-allowed disabled:opacity-70">
+                {submitting ? 'Creating account...' : 'Next'}
+                {!submitting && <ArrowRight size={16} />}
               </button>
             ) : (
               <button disabled={submitting} type="button" onClick={isFeatured ? handlePaymentAndPublish : submitJob} className="inline-flex items-center justify-center gap-2 rounded-md bg-slate-950 px-8 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70">

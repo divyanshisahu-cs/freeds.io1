@@ -14,6 +14,7 @@ import {
   User
 } from 'lucide-react';
 import api from '../services/api';
+import JobBoardNav from '../components/JobBoardNav';
 
 const CategoryIcon = ({ icon: Icon, label, isActive, to }) => {
   const content = (
@@ -101,10 +102,19 @@ const AdCard = ({ ad }) => (
 const LandingPage = () => {
   const [ads, setAds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [country, setCountry] = useState(() => localStorage.getItem('country') || 'India');
+  const [announcements, setAnnouncements] = useState([]);
 
   useEffect(() => {
+    const onCountryChange = (event) => setCountry(event.detail || localStorage.getItem('country') || 'India');
+    window.addEventListener('countrychange', onCountryChange);
+    return () => window.removeEventListener('countrychange', onCountryChange);
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
     api
-      .get('/api/posts')
+      .get('/api/posts', { params: { country } })
       .then((res) => {
         const posts = Array.isArray(res.data) ? res.data : [];
 
@@ -124,41 +134,22 @@ const LandingPage = () => {
       })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
+  }, [country]);
+
+  useEffect(() => {
+    api
+      .get('/api/posts/admin/dashboard')
+      .then((res) => {
+        const live = (res.data.settings?.announcements || []).filter((item) => !item.expiresAt || new Date(item.expiresAt) > new Date());
+        setAnnouncements(live);
+      })
+      .catch(() => setAnnouncements([]));
   }, []);
 
   return (
     <div className="min-h-screen bg-[#f5f7f4] text-slate-900">
       <div className="absolute inset-x-0 top-0 -z-10 h-[580px] bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.22),_transparent_32%),radial-gradient(circle_at_top_right,_rgba(251,191,36,0.18),_transparent_28%),linear-gradient(180deg,_#f7faf7_0%,_#f4f7f2_100%)]" />
-
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-10">
-        <div className="flex items-center gap-3">
-          <div className="rounded-2xl bg-slate-900 px-3 py-2 text-sm font-bold uppercase tracking-[0.26em] text-white">
-            FA
-          </div>
-          <div>
-            <div className="text-xl font-bold tracking-tight text-slate-900">Freeads</div>
-            <div className="text-xs uppercase tracking-[0.28em] text-slate-500">
-              Fast local discovery
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Link
-            to="/post-a-job"
-            className="hidden rounded-full border border-slate-300 px-5 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900 md:inline-flex"
-          >
-            Post an ad
-          </Link>
-          <Link
-            to="/signin"
-            className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-          >
-            <User size={16} />
-            Sign in
-          </Link>
-        </div>
-      </nav>
+      <JobBoardNav />
 
       <section className="mx-auto grid max-w-7xl gap-10 px-6 pb-20 pt-8 lg:grid-cols-[1.15fr_0.85fr] lg:px-10 lg:pb-24 lg:pt-10">
         <div className="flex flex-col justify-center">
@@ -171,7 +162,7 @@ const LandingPage = () => {
             Buy, sell, hire and discover opportunities with confidence.
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
-            Freeads brings jobs, rentals, electronics and services into one clean marketplace
+            Freeads brings jobs, rentals, electronics and services in {country} into one clean marketplace
             experience designed for fast browsing and high-conversion listings.
           </p>
 
@@ -251,6 +242,21 @@ const LandingPage = () => {
         </div>
       </section>
 
+      {announcements.length > 0 && (
+        <section className="mx-auto max-w-7xl px-6 pb-6 lg:px-10">
+          {announcements.slice(0, 1).map((item) => (
+            <div key={item._id || item.title} className="grid gap-5 rounded-md border border-amber-200 bg-amber-50 p-5 md:grid-cols-[180px_1fr]">
+              {item.imageUrl && <img src={item.imageUrl} alt={item.title} className="h-32 w-full rounded-md object-cover" />}
+              <div>
+                <div className="text-xs font-bold uppercase tracking-[0.24em] text-amber-800">Announcement</div>
+                <h2 className="mt-2 text-2xl font-semibold text-slate-950">{item.title}</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-700">{item.text}</p>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
       <section className="mx-auto max-w-5xl px-6 py-8 lg:px-10 lg:py-14">
         <div className="rounded-[32px] border border-slate-200 bg-white px-6 py-8 shadow-[0_25px_70px_-40px_rgba(15,23,42,0.35)] lg:px-10">
           <div className="mb-8 flex items-center justify-between gap-4">
@@ -280,6 +286,7 @@ const LandingPage = () => {
           <div className="h-px w-12 bg-slate-300"></div>
           <h2 className="text-sm font-bold uppercase tracking-[0.3em] text-slate-600">
             Featured Listings
+            <span className="ml-3 text-slate-400">{country}</span>
           </h2>
           <div className="h-px w-12 bg-slate-300"></div>
         </div>

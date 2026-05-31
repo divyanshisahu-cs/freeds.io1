@@ -27,7 +27,25 @@ server {
     }
 
     location /api/ {
-        proxy_pass http://localhost:5000/;
+        proxy_pass http://localhost:5000/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+    }
+
+    location /auth/ {
+        proxy_pass http://localhost:5000/auth/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+    }
+
+    location /uploads/ {
+        proxy_pass http://localhost:5000/uploads/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
