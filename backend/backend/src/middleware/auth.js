@@ -6,8 +6,19 @@ const JWT_SECRET = process.env.JWT_SECRET || "secretkey";
 const readToken = (req) => {
   const header = req.headers.authorization || "";
   if (header.startsWith("Bearer ")) return header.slice(7);
+  // Also support token in query string for convenience
+  if (req.query?.token) return req.query.token;
   return "";
 };
+
+// Creates a signed JWT that embeds id + role so the frontend
+// localStorage user object stays consistent with the token.
+const signToken = (user) =>
+  jwt.sign(
+    { id: user._id, role: user.role || "user" },
+    JWT_SECRET,
+    { expiresIn: "7d" }
+  );
 
 const optionalAuth = async (req, _res, next) => {
   try {
@@ -92,6 +103,7 @@ const requireAdmin = async (req, res, next) => {
 
 module.exports = {
   JWT_SECRET,
+  signToken,
   optionalAuth,
   requireAuth,
   requireVerifiedAuth,

@@ -1,94 +1,85 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+import AccessDeniedPage from '../pages/AccessDeniedPage';
 
+/**
+ * ProtectedRoute
+ *
+ * Props:
+ *  - requireVerification (bool, default true): also check email/mobile verification
+ *  - requireAdmin        (bool, default false): user.role must be "admin"
+ *
+ * Outcomes:
+ *  - Not logged in          → redirect to /signin?from=...
+ *  - Email not verified     → redirect to /verify-email
+ *  - Mobile not verified    → redirect to /verify-mobile
+ *  - Not admin (admin route)→ render <AccessDeniedPage /> inline (403 UX)
+ *  - All good               → render children
+ */
 const ProtectedRoute = ({ children, requireVerification = true, requireAdmin = false }) => {
-  const [loading, setLoading] = useState(true);
-  const [isAllowed, setIsAllowed] = useState(false);
-  const [redirectTo, setRedirectTo] = useState(null);
+  const [status, setStatus] = useState('loading'); // 'loading' | 'allowed' | 'denied' | string (redirectTo)
   const location = useLocation();
 
   useEffect(() => {
-    const checkAccess = async () => {
+    const checkAccess = () => {
       try {
-        const token = localStorage.getItem('token');
+        const token   = localStorage.getItem('token');
         const userStr = localStorage.getItem('user');
 
-        console.log('ProtectedRoute Check:', {
-          path: location.pathname,
-          hasToken: !!token,
-          hasUser: !!userStr,
-          requireVerification,
-          requireAdmin
-        });
-
-        // Not logged in - redirect to signin
+        // ── Not logged in ─────────────────────────────────────────
         if (!token || !userStr) {
-          console.log('No token or user found, redirecting to signin');
-          setRedirectTo(`/signin?from=${encodeURIComponent(location.pathname)}`);
-          setLoading(false);
+          setStatus(`/signin?from=${encodeURIComponent(location.pathname)}`);
           return;
         }
 
         const user = JSON.parse(userStr);
 
-        // Verification not required - just check if logged in
+        // ── Skip verification checks if not required ──────────────
         if (!requireVerification) {
-          console.log('Verification not required, checking admin if needed');
           if (requireAdmin && user.role !== 'admin') {
-            console.log('Admin role required but user has role:', user.role);
-            setRedirectTo('/jobs');
-            setLoading(false);
-            return;
+            setStatus('denied');
+          } else {
+            setStatus('allowed');
           }
-          setIsAllowed(true);
-          setLoading(false);
           return;
         }
 
-        // Check email verification status
+        // ── Email verification ────────────────────────────────────
         if (user.email && !user.emailVerified) {
-          console.log('Email not verified, redirecting to verify-email');
-          setRedirectTo(`/verify-email?email=${encodeURIComponent(user.email)}`);
-          setLoading(false);
+          setStatus(`/verify-email?email=${encodeURIComponent(user.email)}`);
           return;
         }
 
-        // Check mobile verification status
+        // ── Mobile verification ───────────────────────────────────
         if (user.mobile && !user.mobileVerified) {
-          console.log('Mobile not verified, redirecting to verify-mobile');
-          setRedirectTo(`/verify-mobile?mobile=${encodeURIComponent(user.mobile)}`);
-          setLoading(false);
+          setStatus(`/verify-mobile?mobile=${encodeURIComponent(user.mobile)}`);
           return;
         }
 
-        // Check if admin is required
+        // ── Admin role check ──────────────────────────────────────
         if (requireAdmin && user.role !== 'admin') {
-          console.log('Admin role required but user has role:', user.role);
-          setRedirectTo('/jobs');
-          setLoading(false);
+          setStatus('denied');
           return;
         }
 
-        // All checks passed
-        console.log('All checks passed, allowing access');
-        setIsAllowed(true);
-        setLoading(false);
-      } catch (error) {
-        console.error('Protected route check failed:', error);
-        setRedirectTo('/signin');
-        setLoading(false);
+        // ── All good ──────────────────────────────────────────────
+        setStatus('allowed');
+      } catch (err) {
+        console.error('ProtectedRoute error:', err);
+        setStatus('/signin');
       }
     };
 
     checkAccess();
   }, [requireVerification, requireAdmin, location.pathname]);
 
-  if (loading) {
+  // ── Loading spinner ───────────────────────────────────────────────
+  if (status === 'loading') {
     return (
       <div className="flex h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
         <div className="text-center">
           <div className="mb-4 inline-block">
-            <div className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900"></div>
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900" />
           </div>
           <p className="text-slate-600">Checking access...</p>
         </div>
@@ -96,12 +87,18 @@ const ProtectedRoute = ({ children, requireVerification = true, requireAdmin = f
     );
   }
 
-  if (redirectTo) {
-    console.log('Redirecting to:', redirectTo);
-    return <Navigate to={redirectTo} replace />;
+  // ── Access denied — show 403 page inline ─────────────────────────
+  if (status === 'denied') {
+    return <AccessDeniedPage />;
   }
 
-  return isAllowed ? children : null;
+  // ── Allowed ───────────────────────────────────────────────────────
+  if (status === 'allowed') {
+    return children;
+  }
+
+  // ── Redirect (status is the target URL string) ────────────────────
+  return <Navigate to={status} replace />;
 };
 
 export default ProtectedRoute;

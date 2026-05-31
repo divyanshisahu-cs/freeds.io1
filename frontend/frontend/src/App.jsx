@@ -9,6 +9,7 @@ import AdminPage from './pages/AdminPage';
 import ProfilePage from './pages/ProfilePage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import VerifyMobilePage from './pages/VerifyMobilePage';
+import AccessDeniedPage from './pages/AccessDeniedPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -27,6 +28,9 @@ function App() {
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
         <Route path="/verify-mobile" element={<VerifyMobilePage />} />
+
+        {/* Error / Status Routes */}
+        <Route path="/access-denied" element={<AccessDeniedPage />} />
         
         {/* Protected Routes - Require Login + Email Verification */}
         <Route 
